@@ -5,7 +5,7 @@ DIR=$1
 
 while [ "$(/bin/ls -1 hash.* | wc -l)" -gt 1 ]; do
   printf "%s %s\n" $(/bin/ls -1 hash.*) \
-    | xargs -P 4 -L 1 ~/projects/glacier-util/tree-hash-combine
+    | xargs -P 4 -L 1 tree-hash-combine
 done
 
 [ -n "$DIR" ] && popd > /dev/null
