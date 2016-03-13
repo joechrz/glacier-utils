@@ -1,0 +1,32 @@
+#!/bin/bash -e
+
+DIR=$1
+ONE_MB='1048576'
+GLACIER_PART_SIZE="$((16 * $ONE_MB))"
+GLACIER_VAULT_NAME='photos'
+
+# archive the directory and re-split into evenly sized parts
+echo "Archiving $DIR..."
+ARCHIVE_NAME=$(echo "archive.$DIR" | sed 's, ,,g')
+mkdir -p $ARCHIVE_NAME
+
+pushd $ARCHIVE_NAME > /dev/null
+  # split into evenly sized parts
+  echo "Creating evenly sized chunks... ($GLACIER_PART_SIZE bytes each)..."
+  tar -c ../$DIR | split -b $GLACIER_PART_SIZE - part.
+
+  echo "Calculating tree-hashes for each chunk..."
+  /bin/ls -1 part.* \
+    | xargs -P 8 -L 1 -I{} bash -c 'tree-hash -b {} > hash.{}'
+
+  echo "Calculating tree hash for the whole archive..."
+  mkdir -p hashes
+  cp hash.* hashes
+  tree-hash-reduce hashes
+  mv "hashes/$(/bin/ls -1 hashes | head -n 1)" ./hash.archive
+  rm -rf hashes
+  echo -n "Archive tree-hash: "
+  xxd -ps -c 100 hash.archive
+
+  echo "Ready to upload: $ARCHIVE_NAME"
+popd > /dev/null
