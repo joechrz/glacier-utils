@@ -1,4 +1,4 @@
 #!/bin/bash -e
 
 glacier-archive-prepare $1
-glacier-archive-upload archive.$1
+glacier-archive-upload $1

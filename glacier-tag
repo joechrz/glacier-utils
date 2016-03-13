@@ -1,0 +1,19 @@
+#!/bin/bash
+
+rawdir=$1
+tagfile=$2
+
+# tag the original directory with the metadata from the upload
+# so it can be (more) easily restored later
+folder_tag="$rawdir/.glaciertag" 
+
+if [ -f "$folder_tag" ]; then
+  temp_folder_tag=$(mktemp)
+  cp "$folder_tag" "$temp_folder_tag"
+
+  jq --slurp -r '.[0] + [.[1]]' \
+    "$temp_folder_tag" "$tagfile" \
+    > "$folder_tag"
+else
+  jq '[.]' "$tagfile" > "$folder_tag" 
+fi

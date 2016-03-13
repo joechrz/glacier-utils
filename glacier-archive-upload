@@ -1,6 +1,7 @@
-#!/bin/bash
+#!/bin/bash -e
 
-dir=$1
+rawdir=$1
+dir="archive.$1"
 export chunk_size=$((32 * 1024 * 1024))
 
 function upload_chunk() {
@@ -50,12 +51,18 @@ pushd $dir > /dev/null
   final_archive_hash=$(cat hash.archive | xxd -ps -c 100)
   total_archive_size=$(find . -name 'part.*' | xargs stat -f '%z' | awk '{s+=$1} END {print s}')
 
-  aws glacier complete-multipart-upload \
+  upload_result=$(aws glacier complete-multipart-upload \
     --checksum "$final_archive_hash" \
     --archive-size "$total_archive_size" \
     --upload-id "$glacier_upload_id" \
     --account-id - \
-    --vault-name photos \
-  | jq .
+    --vault-name photos)
 
+  # print out the results
+  echo $upload_result | jq .
+
+  # tag the original directory
+  tmptag=$(mktemp)
+  echo "$upload_result" > $tmptag
+  glacier-tag "$dir" "$tmptag"
 popd > /dev/null
