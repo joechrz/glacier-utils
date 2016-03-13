@@ -6,7 +6,7 @@ a few tools I threw together to be able to archive directories to amazon glacier
 
 a bash implementation of their tree-hash algorithm.  usage:
 
-```bash
+```
 tree-hash [-b] filename
 
   -b  print the output hash in binary form
