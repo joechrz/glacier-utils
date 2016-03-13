@@ -1,0 +1,15 @@
+#!/bin/bash -e
+
+file1=$1
+file2=$2
+outfile=$(echo "hash.$file1.$file2" | sed 's,part,,g' | sed 's,\.hash,,g' | sed -E 's,\.+,.,g')
+
+# only run if both args are specified
+if [ -n "$file1" -a -n "$file2" ]; then
+  cat "$file1" "$file2" \
+    | openssl dgst -sha256 -binary \
+    > $outfile
+
+  rm $file1
+  rm $file2
+fi
