@@ -1,0 +1,61 @@
+#!/bin/bash
+
+dir=$1
+export chunk_size=$((32 * 1024 * 1024))
+
+function upload_chunk() {
+  chunk_index=$(($1 - 1))
+  chunk_file=$2
+  FILE_SIZE=$(stat -f "%z" $chunk_file)
+
+  byte_start=$(( $chunk_index * $chunk_size ))
+  byte_end=$(( $byte_start + $FILE_SIZE - 1 ))
+
+  echo "Uploading $chunk_file..."
+  part_upload_result=$(aws glacier upload-multipart-part \
+    --upload-id "$glacier_upload_id" \
+    --body $chunk_file \
+    --range "bytes ${byte_start}-${byte_end}/*" \
+    --account-id - \
+    --vault-name photos)
+
+  exp_checksum=$(cat $(dirname $chunk_file)/hash.$(basename $chunk_file) | xxd -ps -c 100)
+  actual_checksum=$(echo $part_upload_result | jq -r '.checksum')
+
+  if [ "$exp_checksum" != "$actual_checksum" ]; then
+    echo "Checksum Mismatch: $chunk_file"
+    return 1
+  else
+    echo "Uploaded $chunk_file"
+  fi
+}
+
+upload_task=$(aws glacier initiate-multipart-upload \
+  --account-id - \
+  --archive-description "$dir" \
+  --part-size $chunk_size \
+  --vault-name photos)
+
+echo $upload_task | jq .
+export glacier_upload_id=$(echo $upload_task | jq -r '.uploadId')
+export glacier_location=$(echo $upload_task | jq -r '.location')
+
+export -f upload_chunk
+
+pushd $dir > /dev/null
+  /bin/ls -1 part.* \
+    | nl \
+    | xargs -L 1 -I {} -P 4 bash -c 'upload_chunk {}'
+
+  final_archive_hash=$(cat hash.archive | xxd -ps -c 100)
+  total_archive_size=$(find . -name 'part.*' | xargs stat -f '%z' | awk '{s+=$1} END {print s}')
+
+  aws glacier complete-multipart-upload \
+    --checksum "$final_archive_hash" \
+    --archive-size "$total_archive_size" \
+    --upload-id "$glacier_upload_id" \
+    --account-id - \
+    --vault-name photos \
+  | jq .
+
+popd > /dev/null

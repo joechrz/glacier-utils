@@ -12,7 +12,7 @@ fi
 
 FILE="$(cd "$(dirname "$filename")" && pwd)/$(basename "$filename")"
 ONE_MB=1048576
-FILE_SIZE=$(stat $FILE | cut -d ' ' -f 1)
+FILE_SIZE=$(stat -f "%z" $FILE)
 TMP_DIR=$(mktemp -d)
 
 pushd $TMP_DIR > /dev/null
