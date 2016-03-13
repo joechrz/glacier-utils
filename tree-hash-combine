@@ -6,10 +6,11 @@ outfile=$(echo "hash.$file1.$file2" | sed 's,part,,g' | sed 's,\.hash,,g' | sed 
 
 # only run if both args are specified
 if [ -n "$file1" -a -n "$file2" ]; then
+  tempfile=$(mktemp);
   cat "$file1" "$file2" \
     | openssl dgst -sha256 -binary \
-    > $outfile
+    > $tempfile
 
-  rm $file1
+  mv $tempfile $file1
   rm $file2
 fi
